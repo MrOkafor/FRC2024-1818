@@ -20,33 +20,52 @@
  * Runs the motors with tank steering and an Xbox controller.
  */
 class Robot : public frc::TimedRobot {
+
+  // rev::CANSparkMax m_rightMotorFront{1, rev::CANSparkLowLevel::MotorType::kBrushless };
+  // rev::CANSparkMax m_leftMotorFront{3,  rev::CANSparkLowLevel::MotorType::kBrushless };
+  // rev::CANSparkMax m_rightMotorBack{2, rev::CANSparkLowLevel::MotorType::kBrushless };
+  // rev::CANSparkMax m_leftMotorBack{4,  rev::CANSparkLowLevel::MotorType::kBrushless};
+  // rev::CANSparkMax m_leftArmMotor{5,  rev::CANSparkLowLevel::MotorType::kBrushless};
+  // rev::CANSparkMax m_rightArmMotor{6,  rev::CANSparkLowLevel::MotorType::kBrushless};
+  // rev::CANSparkMax m_topShooterMotor{7,  rev::CANSparkLowLevel::MotorType::kBrushless};
+  // rev::CANSparkMax m_bottomShooterMotor{8,  rev::CANSparkLowLevel::MotorType::kBrushless};
+  // rev::CANSparkMax m_intakeMotor{9,  rev::CANSparkLowLevel::MotorType::kBrushless};
   //Sparkmax Motor Objects Created
-  rev::CANSparkMax m_leftMotor1{1, rev::CANSparkLowLevel::MotorType::kBrushless };
-  rev::CANSparkMax m_rightMotor1{3,  rev::CANSparkLowLevel::MotorType::kBrushless };
-  rev::CANSparkMax m_leftMotor2{2, rev::CANSparkLowLevel::MotorType::kBrushless };
-  rev::CANSparkMax m_rightMotor2{4,  rev::CANSparkLowLevel::MotorType::kBrushless};
-  rev::CANSparkMax m_armMotor{5,  rev::CANSparkLowLevel::MotorType::kBrushless};
+  rev::CANSparkMax m_rightMotorFront{1, rev::CANSparkLowLevel::MotorType::kBrushless };
+  rev::CANSparkMax m_leftMotorFront{3,  rev::CANSparkLowLevel::MotorType::kBrushless };
+  rev::CANSparkMax m_rightMotorBack{2, rev::CANSparkLowLevel::MotorType::kBrushless };
+  rev::CANSparkMax m_leftMotorBack{4,  rev::CANSparkLowLevel::MotorType::kBrushless};
+  rev::CANSparkMax m_leftArmMotor{5,  rev::CANSparkLowLevel::MotorType::kBrushless};
+  rev::CANSparkMax m_rightArmMotor{6,  rev::CANSparkLowLevel::MotorType::kBrushless};
+  rev::CANSparkMax m_topShooterMotor{7,  rev::CANSparkLowLevel::MotorType::kBrushless};
+  rev::CANSparkMax m_bottomShooterMotor{8,  rev::CANSparkLowLevel::MotorType::kBrushless};
+  rev::CANSparkMax m_intakeMotor{9,  rev::CANSparkLowLevel::MotorType::kBrushless};
+
 
   //Encoder objects created, mapped to existing Sparkmax Objects
-  rev::SparkRelativeEncoder m_encoder1 = m_leftMotor1.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
-  rev::SparkRelativeEncoder m_encoder2 = m_leftMotor2.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
-  rev::SparkRelativeEncoder m_encoder3 = m_rightMotor1.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
-  rev::SparkRelativeEncoder m_encoder4 = m_rightMotor2.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
-  rev::SparkRelativeEncoder armEncoder = m_armMotor.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
+  rev::SparkRelativeEncoder m_encoderR1 = m_rightMotorFront.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
+  rev::SparkRelativeEncoder m_encoderR2 = m_rightMotorBack.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
+  rev::SparkRelativeEncoder m_encoderR3 = m_leftMotorFront.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
+  rev::SparkRelativeEncoder m_encoderR4 = m_leftMotorBack.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
+  rev::SparkRelativeEncoder m_armEncoder = m_rightArmMotor.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
+  rev::SparkRelativeEncoder m_shooterEncoderT = m_topShooterMotor.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
+  rev::SparkRelativeEncoder m_shooterEncoderB = m_bottomShooterMotor.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
+  rev::SparkRelativeEncoder m_intakeEncoder = m_intakeMotor.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
   
 
   //Creating PIDs for encoders
-  //rev::SparkPIDController m_pidController1 = m_leftMotor1.GetPIDController();
-  rev::SparkPIDController m_pidController2 = m_leftMotor2.GetPIDController();
-  rev::SparkPIDController m_pidController3  = m_rightMotor1.GetPIDController();
-  rev::SparkPIDController m_pidController4 = m_rightMotor2.GetPIDController();
+  //rev::SparkPIDController m_pidController1 = m_rightMotorFront.GetPIDController();
+  rev::SparkPIDController m_pidController2 = m_rightMotorBack.GetPIDController();
+  rev::SparkPIDController m_pidController3  = m_leftMotorFront.GetPIDController();
+  rev::SparkPIDController m_pidController4 = m_leftMotorBack.GetPIDController();
 
   double kP = 0.1, kI = 1e-4, kD = 1, kIz = 0, kFF = 0, kMaxOutput = 1, kMinOutput = -1;
+  bool bA = false, bX = false, bF = false, bR = false, bU = false, bD = false; 
 
 
   frc::DifferentialDrive m_robotDrive{
-      [&](double output) { m_leftMotor1.Set(output); },
-      [&](double output) { m_rightMotor1.Set(output); }};
+      [&](double output) { m_rightMotorFront.Set(output); },
+      [&](double output) { m_leftMotorFront.Set(output); }};
   frc::XboxController m_driverController{0};
 
   private:
@@ -82,19 +101,23 @@ class Robot : public frc::TimedRobot {
     frc::SmartDashboard::PutNumber("Max Output", kMaxOutput);
     frc::SmartDashboard::PutNumber("Min Output", kMinOutput);
     frc::SmartDashboard::PutNumber("Set Rotations", 0);
+    wpi::SendableRegistry::AddChild(&m_robotDrive, &m_rightMotorFront);
+    wpi::SendableRegistry::AddChild(&m_robotDrive, &m_leftMotorFront);
 
-    wpi::SendableRegistry::AddChild(&m_robotDrive, &m_leftMotor1);
-    wpi::SendableRegistry::AddChild(&m_robotDrive, &m_rightMotor1);
 
-
-    m_leftMotor1.SetInverted(true);
-    m_armMotor.SetInverted(true);
+    m_rightMotorFront.SetInverted(true);
+    m_leftMotorBack.SetInverted(true);
+    m_rightArmMotor.SetInverted(true);
+    m_topShooterMotor.SetInverted(true);
+    m_bottomShooterMotor.SetInverted(true);
+    m_intakeMotor.SetInverted(true);
     // We need to invert one side of the drivetrain so that positive voltages
     // result in both sides moving forward. Depending on how your robot's
     // gearbox is constructed, you might have to invert the left side instead.
-    m_leftMotor2.Follow(m_leftMotor1);
-    m_rightMotor2.Follow(m_rightMotor1);    
-    armEncoder.SetPosition(0);
+    m_rightMotorBack.Follow(m_rightMotorFront);
+    m_leftMotorBack.Follow(m_leftMotorFront);
+    m_leftArmMotor.Follow(m_rightArmMotor);
+    m_armEncoder.SetPosition(0);
 
     //Initialize Autonomous Robot Options
     m_chooser.SetDefaultOption(kAutoNameDefault, kAutoNameDefault);
@@ -120,11 +143,11 @@ void AutonomousPeriodic() override {
     // Custom Auto goes here
     if (m_autoTimer.Get() > 0_s && m_autoTimer.Get() < 1_s) {
       newArmPos = 30; //Rotate Arm
-      if (armEncoder.GetPosition() < 75) {
-        m_armMotor.Set(0.5);
+      if (m_armEncoder.GetPosition() < 75) {
+        m_rightArmMotor.Set(0.5);
       }
       else {
-        m_armMotor.Set(0);
+        m_rightArmMotor.Set(0);
       }
    }
   } else {
@@ -134,15 +157,24 @@ void AutonomousPeriodic() override {
 }
 
   void TeleopPeriodic() override {
+    bA = m_driverController.GetAButton();
+    bX = m_driverController.GetXButton();
+    bF = m_driverController.GetRightTriggerAxis();
+    bR = m_driverController.GetLeftTriggerAxis();
+    bU = m_driverController.GetRightBumper();
+    bD = m_driverController.GetLeftBumper();
     // Drive with tank style
     m_robotDrive.ArcadeDrive(-m_driverController.GetLeftY(),
                            m_driverController.GetLeftX());
+
     
-    if (armEncoder.GetPosition() < 75) {
-      m_armMotor.Set(0.5);
+    
+
+    if (m_armEncoder.GetPosition() < 75) {
+      m_rightArmMotor.Set(0.5);
     }
     else {
-      m_armMotor.Set(0);
+      m_rightArmMotor.Set(0);
     }
     
 
@@ -156,7 +188,7 @@ void AutonomousPeriodic() override {
     double max = frc::SmartDashboard::GetNumber("Max Output", 0);
     double min = frc::SmartDashboard::GetNumber("Min Output", 0);
     double rotations = frc::SmartDashboard::GetNumber("Set Rotations", 0);
-    double pos = armEncoder.GetPosition();
+    double pos = m_armEncoder.GetPosition();
     std::cout << pos;
     
     frc::SmartDashboard::PutNumber("Set Rotations",pos);
