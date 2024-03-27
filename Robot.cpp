@@ -4,6 +4,7 @@
 
 #include <units/voltage.h>
 #include <iostream>
+
 #include <frc/TimedRobot.h>
 #include <frc/XboxController.h>
 #include <frc/drive/DifferentialDrive.h>
@@ -12,6 +13,7 @@
 #include <frc/motorcontrol/MotorControllerGroup.h>
 #include <frc/smartdashboard/SmartDashboard.h>
 #include <frc/smartdashboard/SendableChooser.h>
+#include <frc/DigitalInput.h>
 #include "rev/CANSparkMax.h"
 #include "rev/CANEncoder.h"
 
@@ -31,9 +33,9 @@ class Robot : public frc::TimedRobot {
   // rev::CANSparkMax m_bottomShooterMotor{8,  rev::CANSparkLowLevel::MotorType::kBrushless};
   // rev::CANSparkMax m_intakeMotor{9,  rev::CANSparkLowLevel::MotorType::kBrushless};
   //Sparkmax Motor Objects Created
-  rev::CANSparkMax m_rightMotorFront{1, rev::CANSparkLowLevel::MotorType::kBrushless };
+  rev::CANSparkMax m_rightMotorFront{2, rev::CANSparkLowLevel::MotorType::kBrushless };
   rev::CANSparkMax m_leftMotorFront{3,  rev::CANSparkLowLevel::MotorType::kBrushless };
-  rev::CANSparkMax m_rightMotorBack{2, rev::CANSparkLowLevel::MotorType::kBrushless };
+  rev::CANSparkMax m_rightMotorBack{1, rev::CANSparkLowLevel::MotorType::kBrushless };
   rev::CANSparkMax m_leftMotorBack{4,  rev::CANSparkLowLevel::MotorType::kBrushless};
   rev::CANSparkMax m_leftArmMotor{5,  rev::CANSparkLowLevel::MotorType::kBrushless};
   rev::CANSparkMax m_rightArmMotor{6,  rev::CANSparkLowLevel::MotorType::kBrushless};
@@ -47,7 +49,8 @@ class Robot : public frc::TimedRobot {
   rev::SparkRelativeEncoder m_encoderR2 = m_rightMotorBack.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
   rev::SparkRelativeEncoder m_encoderR3 = m_leftMotorFront.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
   rev::SparkRelativeEncoder m_encoderR4 = m_leftMotorBack.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
-  rev::SparkRelativeEncoder m_armEncoder = m_rightArmMotor.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
+  rev::SparkRelativeEncoder m_RarmEncoder = m_rightArmMotor.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
+  rev::SparkRelativeEncoder m_LarmEncoder = m_leftArmMotor.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
   rev::SparkRelativeEncoder m_shooterEncoderT = m_topShooterMotor.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
   rev::SparkRelativeEncoder m_shooterEncoderB = m_bottomShooterMotor.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
   rev::SparkRelativeEncoder m_intakeEncoder = m_intakeMotor.GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor, 42);
@@ -60,7 +63,7 @@ class Robot : public frc::TimedRobot {
   rev::SparkPIDController m_pidController4 = m_leftMotorBack.GetPIDController();
 
   double kP = 0.1, kI = 1e-4, kD = 1, kIz = 0, kFF = 0, kMaxOutput = 1, kMinOutput = -1;
-  bool bA = false, bX = false, bF = false, bR = false, bU = false, bD = false; 
+  bool ba_intake = false, bx_sShooter = false, by_aShooter = false, b_forward = false, b_reverse = false, b_up = false, b_down = false, bb_outtake = false;
 
 
   frc::DifferentialDrive m_robotDrive{
@@ -74,7 +77,9 @@ class Robot : public frc::TimedRobot {
   const std::string kauto1 = "Auto 1";
   std::string m_autoSelected;
   frc::Timer m_autoTimer;
-
+  // Right And Left Arm Limit Switches:
+  frc::DigitalInput rightLimit{9};
+  frc::DigitalInput leftLimit{8};
  public:
   void RobotInit() override {
     /**
@@ -105,75 +110,94 @@ class Robot : public frc::TimedRobot {
     wpi::SendableRegistry::AddChild(&m_robotDrive, &m_leftMotorFront);
 
 
-    m_rightMotorFront.SetInverted(true);
-    m_leftMotorBack.SetInverted(true);
-    m_rightArmMotor.SetInverted(true);
-    m_topShooterMotor.SetInverted(true);
+    // m_rightMotorFront.SetInverted(true);
+    m_leftMotorFront.SetInverted(true);
     m_bottomShooterMotor.SetInverted(true);
-    m_intakeMotor.SetInverted(true);
     // We need to invert one side of the drivetrain so that positive voltages
     // result in both sides moving forward. Depending on how your robot's
     // gearbox is constructed, you might have to invert the left side instead.
     m_rightMotorBack.Follow(m_rightMotorFront);
     m_leftMotorBack.Follow(m_leftMotorFront);
-    m_leftArmMotor.Follow(m_rightArmMotor);
-    m_armEncoder.SetPosition(0);
+    // m_armEncoder.SetPosition(0);
 
-    //Initialize Autonomous Robot Options
-    m_chooser.SetDefaultOption(kAutoNameDefault, kAutoNameDefault);
-    m_chooser.AddOption(kauto1, kauto1);
-    frc::SmartDashboard::PutData("Auto Modes", &m_chooser);
-
+    
 }
 
-void AutonomousInit() override {
-  m_autoSelected = m_chooser.GetSelected();
-  fmt::print("Auto Selected: {}\n", m_autoSelected);
-  m_autoTimer.Reset();
-  m_autoTimer.Start();
-}
-
-void AutonomousPeriodic() override {
-  int newArmPos;
-  m_robotDrive.ArcadeDrive(0,0);
-  fmt::print("Do Nothing");
-
-  if (m_autoSelected == kauto1) {
-    fmt::print("Nothing to see here");
-    // Custom Auto goes here
-    if (m_autoTimer.Get() > 0_s && m_autoTimer.Get() < 1_s) {
-      newArmPos = 30; //Rotate Arm
-      if (m_armEncoder.GetPosition() < 75) {
-        m_rightArmMotor.Set(0.5);
-      }
-      else {
-        m_rightArmMotor.Set(0);
-      }
-   }
-  } else {
-      // Default Auto goes here
-      fmt::print("The adverse effect");
-  }
-}
 
   void TeleopPeriodic() override {
-    bA = m_driverController.GetAButton();
-    bX = m_driverController.GetXButton();
-    bF = m_driverController.GetRightTriggerAxis();
-    bR = m_driverController.GetLeftTriggerAxis();
-    bU = m_driverController.GetRightBumper();
-    bD = m_driverController.GetLeftBumper();
+    ba_intake = m_driverController.GetAButton();
+    bb_outtake = m_driverController.GetBButton();
+    bx_sShooter = m_driverController.GetXButton();
+    by_aShooter = m_driverController.GetYButton();
+    b_forward = m_driverController.GetRightTriggerAxis();
+    b_reverse = m_driverController.GetLeftTriggerAxis();
+    b_up = m_driverController.GetRightBumper();
+    b_down = m_driverController.GetLeftBumper();
     // Drive with tank style
-    m_robotDrive.ArcadeDrive(-m_driverController.GetLeftY(),
-                           m_driverController.GetLeftX());
+    m_robotDrive.ArcadeDrive(m_driverController.GetRightY(),
+                            -m_driverController.GetRightX());
 
+    //forward
+    // if (b_forward){
+    //   m_rightMotorFront.Set(0.5);
+    //   m_leftMotorFront.Set(0.5);
+    // }
+    // else if (b_reverse){
+    //   m_rightMotorFront.Set(-0.5);
+    //   m_leftMotorFront.Set(-0.5);
+    // }
+    // else {
+    //   m_rightMotorFront.Set(0);
+    //   m_leftMotorFront.Set(0);
+    // }
     
-    
-
-    if (m_armEncoder.GetPosition() < 75) {
-      m_rightArmMotor.Set(0.5);
+    //intake
+    if (ba_intake) {
+      m_intakeMotor.Set(0.5);
+    }
+    else if (bb_outtake) {
+      m_intakeMotor.Set(-0.5);
     }
     else {
+      m_intakeMotor.Set(0);
+    }
+
+    //speaker_shooter
+    // if (bx_sShooter) {
+    //   m_leftArmMotor.Set(-0.5);
+    //   m_rightArmMotor.Set(-0.5);
+    //   m_topShooterMotor.Set(-0.5);
+    //   m_bottomShooterMotor.Set(0.5);
+    // }
+    // else {
+    //   // m_intakeMotor.Set(0.5);
+    //   m_topShooterMotor.Set(0) ;
+    //   m_bottomShooterMotor.Set(0);
+    // }
+    //speaker_shooter
+    // if (by_aShooter) {
+    //   m_leftArmMotor.Set(-0.5);
+    //   m_rightArmMotor.Set(-0.5);
+    //   m_topShooterMotor.Set(-0.5);
+    //   m_bottomShooterMotor.Set(0.5);
+    // }
+    // else {
+    //   // m_intakeMotor.Set(0.5);
+    //   m_topShooterMotor.Set(0) ;
+    //   m_bottomShooterMotor.Set(0);
+    // }
+
+    //armup
+    if (b_up) {
+      m_leftArmMotor.Set(-0.5);
+      m_rightArmMotor.Set(-0.5);
+    }
+    else if (b_down) {
+      m_leftArmMotor.Set(0.5);
+      m_rightArmMotor.Set(0.5);
+    }
+    else { 
+      m_leftArmMotor.Set(0);
       m_rightArmMotor.Set(0);
     }
     
@@ -188,10 +212,14 @@ void AutonomousPeriodic() override {
     double max = frc::SmartDashboard::GetNumber("Max Output", 0);
     double min = frc::SmartDashboard::GetNumber("Min Output", 0);
     double rotations = frc::SmartDashboard::GetNumber("Set Rotations", 0);
-    double pos = m_armEncoder.GetPosition();
-    std::cout << pos;
+    double rPos = m_RarmEncoder.GetPosition();
+    double lPos = m_LarmEncoder.GetPosition();
+    frc::SmartDashboard::PutNumber("Right Encoder Output", rPos);
+    frc::SmartDashboard::PutNumber("Left Encoder Output", lPos);
     
-    frc::SmartDashboard::PutNumber("Set Rotations",pos);
+    std::cout << lPos;
+    
+    // frc::SmartDashboard::PutNumber("Set Rotations",pos);
     // if PID coefficients on SmartDashboard have changed, write new values to controller
     //if((p != kP)) { m_pidController1.SetP(p); kP = p; }
     // if((i != kI)) { m_pidController1.SetI(i); kI = i; }
@@ -221,6 +249,40 @@ void AutonomousPeriodic() override {
     //frc::SmartDashboard::PutNumber("SetPoint", rotations);
     //frc::SmartDashboard::PutNumber("ProcessVariable", m_encoder1.GetPosition());
     
+  }
+
+  void RobotPeriodic() override{
+    // If Limit Switches Pressed, Set Arm Positions To 0, armRaised False, & Disk Brakes Forward:
+    //printf("rightarm down");
+    //printf("test1 %f", m_RarmEncoder.GetPosition());
+    //printf("test %f",m_LarmEncoder.GetPosition());
+
+  if (!rightLimit.Get())
+  {
+    frc::SmartDashboard::PutString("RightArm Status", "rightarm down");
+    printf("test1 %f", m_RarmEncoder.GetPosition());
+    m_RarmEncoder.SetPosition(0);
+    m_LarmEncoder.SetPosition(0);
+  }
+  else if(rightLimit.Get())
+  {
+    frc::SmartDashboard::PutString("RightArm Status", "rightarm up");
+    printf("test2 %f", m_RarmEncoder.GetPosition());
+  }
+  if (!leftLimit.Get())
+  {
+    frc::SmartDashboard::PutString("LeftArm Status", "leftarm down");
+    printf("test3 %f",m_LarmEncoder.GetPosition());
+    m_RarmEncoder.SetPosition(0);
+    m_LarmEncoder.SetPosition(0);
+  }
+  else if(leftLimit.Get())
+  {
+    frc::SmartDashboard::PutString("LeftArm Status", "leftarm up");
+    printf("test4 %f", m_RarmEncoder.GetPosition());
+  }
+  fflush(stdout);
+  fflush(stderr);
   }
 };
 
