@@ -23,15 +23,6 @@
  */
 class Robot : public frc::TimedRobot {
 
-  // rev::CANSparkMax m_rightMotorFront{1, rev::CANSparkLowLevel::MotorType::kBrushless };
-  // rev::CANSparkMax m_leftMotorFront{3,  rev::CANSparkLowLevel::MotorType::kBrushless };
-  // rev::CANSparkMax m_rightMotorBack{2, rev::CANSparkLowLevel::MotorType::kBrushless };
-  // rev::CANSparkMax m_leftMotorBack{4,  rev::CANSparkLowLevel::MotorType::kBrushless};
-  // rev::CANSparkMax m_leftArmMotor{5,  rev::CANSparkLowLevel::MotorType::kBrushless};
-  // rev::CANSparkMax m_rightArmMotor{6,  rev::CANSparkLowLevel::MotorType::kBrushless};
-  // rev::CANSparkMax m_topShooterMotor{7,  rev::CANSparkLowLevel::MotorType::kBrushless};
-  // rev::CANSparkMax m_bottomShooterMotor{8,  rev::CANSparkLowLevel::MotorType::kBrushless};
-  // rev::CANSparkMax m_intakeMotor{9,  rev::CANSparkLowLevel::MotorType::kBrushless};
   //Sparkmax Motor Objects Created
   rev::CANSparkMax m_rightMotorFront{2, rev::CANSparkLowLevel::MotorType::kBrushless };
   rev::CANSparkMax m_leftMotorFront{3,  rev::CANSparkLowLevel::MotorType::kBrushless };
@@ -57,12 +48,13 @@ class Robot : public frc::TimedRobot {
   
 
   //Creating PIDs for encoders
-  //rev::SparkPIDController m_pidController1 = m_rightMotorFront.GetPIDController();
-  rev::SparkPIDController m_pidController2 = m_rightMotorBack.GetPIDController();
-  rev::SparkPIDController m_pidController3  = m_leftMotorFront.GetPIDController();
-  rev::SparkPIDController m_pidController4 = m_leftMotorBack.GetPIDController();
+  rev::SparkPIDController m_rmbPid = m_rightMotorFront.GetPIDController();
+  rev::SparkPIDController m_lmbPid  = m_leftMotorFront.GetPIDController();
+  rev::SparkPIDController m_larmPid = m_leftArmMotor.GetPIDController();
+  rev::SparkPIDController m_rarmPid = m_rigtArmMotor.GetPIDController();
 
   double kP = 0.1, kI = 1e-4, kD = 1, kIz = 0, kFF = 0, kMaxOutput = 1, kMinOutput = -1;
+  double ampPos = -60, speakerPos = -2;
   bool ba_intake = false, bx_sShooter = false, by_aShooter = false, b_forward = false, b_reverse = false, b_up = false, b_down = false, bb_outtake = false;
 
 
@@ -72,14 +64,14 @@ class Robot : public frc::TimedRobot {
   frc::XboxController m_driverController{0};
 
   private:
-  frc::SendableChooser<std::string> m_chooser;
-  const std::string kAutoNameDefault = "Nothing";
-  const std::string kauto1 = "Auto 1";
-  std::string m_autoSelected;
-  frc::Timer m_autoTimer;
-  // Right And Left Arm Limit Switches:
-  frc::DigitalInput rightLimit{9};
-  frc::DigitalInput leftLimit{8};
+    frc::SendableChooser<std::string> m_chooser;
+    const std::string kAutoNameDefault = "Nothing";
+    const std::string kauto1 = "Auto 1";
+    std::string m_autoSelected;
+    frc::Timer m_autoTimer;
+    // Right And Left Arm Limit Switches:
+    frc::DigitalInput rightLimit{9};
+    frc::DigitalInput leftLimit{8};
  public:
   void RobotInit() override {
     /**
@@ -129,13 +121,13 @@ class Robot : public frc::TimedRobot {
     bb_outtake = m_driverController.GetBButton();
     bx_sShooter = m_driverController.GetXButton();
     by_aShooter = m_driverController.GetYButton();
-    b_forward = m_driverController.GetRightTriggerAxis();
-    b_reverse = m_driverController.GetLeftTriggerAxis();
+    // b_forward = m_driverController.GetRightTriggerAxis();
+    // b_reverse = m_driverController.GetLeftTriggerAxis();
     b_up = m_driverController.GetRightBumper();
     b_down = m_driverController.GetLeftBumper();
-    // Drive with tank style
-    m_robotDrive.ArcadeDrive(m_driverController.GetRightY(),
-                            -m_driverController.GetRightX());
+
+    // Arcade Drive (X Direction Sensitivity Decreased & Inverted):
+    m_robotDrive.ArcadeDrive(m_driveController.GetLeftTriggerAxis() - m_driveController.GetRightTriggerAxis(), (-m_driveController.GetLeftX() * 0.8));
 
     //forward
     // if (b_forward){
@@ -162,30 +154,28 @@ class Robot : public frc::TimedRobot {
       m_intakeMotor.Set(0);
     }
 
-    //speaker_shooter
-    // if (bx_sShooter) {
-    //   m_leftArmMotor.Set(-0.5);
-    //   m_rightArmMotor.Set(-0.5);
-    //   m_topShooterMotor.Set(-0.5);
-    //   m_bottomShooterMotor.Set(0.5);
-    // }
-    // else {
-    //   // m_intakeMotor.Set(0.5);
-    //   m_topShooterMotor.Set(0) ;
-    //   m_bottomShooterMotor.Set(0);
-    // }
-    //speaker_shooter
-    // if (by_aShooter) {
-    //   m_leftArmMotor.Set(-0.5);
-    //   m_rightArmMotor.Set(-0.5);
-    //   m_topShooterMotor.Set(-0.5);
-    //   m_bottomShooterMotor.Set(0.5);
-    // }
-    // else {
-    //   // m_intakeMotor.Set(0.5);
-    //   m_topShooterMotor.Set(0) ;
-    //   m_bottomShooterMotor.Set(0);
-    // }
+    // speaker_shooter X button on Controller uses PID to set the Arm Elevation
+    if (bx_sShooter) {
+      m_rarmPid.SetReference(speakerPos, rev::CANSparkMax::ControlType::kPosition);
+      m_larmPid.SetReference(speakerPos, rev::CANSparkMax::ControlType::kPosition);
+      m_topShooterMotor.Set(-0.5);
+      m_bottomShooterMotor.Set(0.5);
+    }
+
+    // amp_shooter Y button on Cotroller uses PID to set the Arm elevation
+    else if (by_aShooter) {
+      m_rarmPid.SetReference(ampPos, rev::CANSparkMax::ControlType::kPosition);
+      m_larmPid.SetReference(ampPos, rev::CANSparkMax::ControlType::kPosition);
+      m_topShooterMotor.Set(-0.5);
+      m_bottomShooterMotor.Set(0.5);
+    }
+
+    else {
+      m_RarmEncoder.SetPosition(0)
+      m_RarmEncoder.SetPosition(0)
+      m_topShooterMotor.Set(0) ;
+      m_bottomShooterMotor.Set(0);
+    }
 
     //armup
     if (b_up) {
